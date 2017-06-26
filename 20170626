@@ -1,0 +1,39 @@
+public String saveProgramAuth(Map<String, List<Map<String, Object>>> parameter) {
+		String policyCd = "";
+		String programAuthCd = "";
+		List<Map<String, Object>> programAuthParam = parameter.get("programAuth");
+		Map<String, Object> programAuth = programAuthParam.get(0);
+
+		if(DatasetUtil.getRowType(programAuth) == RowType.INSERT) {
+			policyCd = (String) mapper.insertReturnKey("ProgramAuthMapper.insertPolicy", programAuth);
+			programAuth.put("POLICY_CD", policyCd);
+			programAuthCd = (String) mapper.insertReturnKey("ProgramAuthMapper.insertProgramAuth", programAuth);
+		} else {
+			if(DatasetUtil.getRowType(programAuth) == RowType.UPDATE) {
+				mapper.update("ProgramAuthMapper.updatePolicy", programAuth);
+				mapper.update("ProgramAuthMapper.updateProgramAuth", programAuth);
+			}
+			policyCd = (String) programAuth.get("POLICY_CD");
+			programAuthCd = (String) programAuth.get("PROGRAM_AUTH_CD");
+		}
+		
+		List<Map<String, Object>> department = parameter.get("department");
+		department = ObjectUtil.addValueForMapList(department, programAuth, "PROGRAM_AUTH_CD", "POLICY_CD");
+		List<Map<String, Object>> position = parameter.get("position");
+		position = ObjectUtil.addValueForMapList(position, programAuth, "PROGRAM_AUTH_CD", "POLICY_CD");
+		List<Map<String, Object>> duty = parameter.get("duty");
+		duty = ObjectUtil.addValueForMapList(duty, programAuth, "PROGRAM_AUTH_CD", "POLICY_CD");
+		List<Map<String, Object>> user = parameter.get("user");
+		user = ObjectUtil.addValueForMapList(user, programAuth, "PROGRAM_AUTH_CD", "POLICY_CD");
+		List<Map<String, Object>> authEtc = parameter.get("authEtc");
+		authEtc = ObjectUtil.addValueForMapList(authEtc, "PROGRAM_AUTH_CD", programAuthCd);
+	
+		mapper.save("ProgramAuthMapper.saveGroupDepartment", department);
+		mapper.save("ProgramAuthMapper.saveGroupPosition", position);
+		mapper.save("ProgramAuthMapper.saveGroupDuty", duty);
+		mapper.save("ProgramAuthMapper.saveGroupUser", user);
+		
+		mapper.save("ProgramAuthMapper.saveAuthEtc", authEtc);	
+		
+		return programAuthCd;
+	}
