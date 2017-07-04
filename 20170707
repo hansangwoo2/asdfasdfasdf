@@ -1,0 +1,48 @@
+	public static void chkPwinvalid(HttpServletRequest req, HttpServletResponse res) throws IOException {
+		//비밀번호 변경 화면으로 이동시 원래 가려고했던 URL 저장
+		if(req.getSession().getAttribute("SPRING_SECURITY_SAVED_REQUEST")!=null){
+			SavedRequest savedRequest = (SavedRequest) req.getSession().getAttribute("SPRING_SECURITY_SAVED_REQUEST");
+			String requestUrl = savedRequest.getRedirectUrl();
+			String chgpwUrl = "http://"+req.getHeader("host")+req.getContextPath()+"/MEMBER/chgpw";
+			
+			//비밀번호 변경 화면으로 가려고 했을시 이전 URL 강제 변경
+			if(requestUrl.equals(chgpwUrl)){
+				req.getSession().setAttribute("prevURL", req.getContextPath()+"/");
+			} else {
+				req.getSession().setAttribute("prevURL", requestUrl);
+			}
+		} else {
+			req.getSession().setAttribute("prevURL", req.getContextPath()+"/");
+		}
+		//비밀번호 유효기간 만료시 비밀번호 변경 화면으로 이동
+		if(req.getSession().getAttribute("result")!=null){
+			//login.jsp에서 비밀번호 유효기간에대한 결과값을 받아온다.
+			if(req.getSession().getAttribute("result").equals("invaildPwDT")){
+				req.getSession().setAttribute("result", "");
+				
+				res.sendRedirect(req.getContextPath()+"/MEMBER/chgpw");
+			}
+		}
+	}
+  
+  ----------------------------------------------------JSP부분----------------------------------------------------
+  
+  $(document).ready(function(){
+	<% 
+		 String prevUrl = session.getAttribute("prevURL2").toString();
+		 if( prevUrl.equals(request.getRequestURL())){
+			 prevUrl = request.getContextPath()+"/";
+		 } else{
+			 prevUrl = session.getAttribute("prevURL2").toString();	 
+		 }
+	%>
+});
+
+
+
+
+ 	<div class="btn_group">
+ 			<button class="primary btn_ok" id="btnsave" type="submit"><span><spring:message code='word.chgpw.06'/></span></button>
+ 			<a href="<%=prevUrl %>"><button class="base btn_cancle" id="btncancel" type="submit"><span><spring:message code='word.chguserinfo.10'/></span></button></a>
+ 	</div>
+ 	
