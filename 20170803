@@ -1,0 +1,447 @@
+<NationController.java>
+
+package ngel.mrv.cms.sys.nation.web;
+
+@RestController
+@RequestMapping("/sys/code/nation")
+public class NationController {
+
+	@Autowired
+	private NationService nationService;
+	
+	@RequestMapping(method = RequestMethod.GET)
+    public ResponseResult findAll(@RequestParam Map<String, Object> param, Pageable pageable) {
+        return ResponseResult.result(nationService.findAll(param, pageable));
+    }
+	
+	@RequestMapping(method = RequestMethod.POST)
+    public ResponseResult saveNation(@RequestBody List<NationDto> nationDtoList) {
+		nationService.saveNation(nationDtoList);
+        return ResponseResult.ok();
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+<NationControllerTest.java>
+
+package ngel.mrv.cms.sys.nation.web;
+
+@RunWith(MockitoJUnitRunner.class)
+public class NationControllerTest {
+	private MockMvc mockMvc;
+    private ObjectMapper objectMapper = new ObjectMapper();
+    private MediaType contentType = new MediaType(MediaType.APPLICATION_JSON.getType(),
+            MediaType.APPLICATION_JSON.getSubtype(),
+            Charset.forName("utf8"));
+
+    @Mock
+    private NationService service;
+
+    @InjectMocks
+    private NationController dup;
+
+    @Before
+    public void setUp() throws Exception {
+        MockitoAnnotations.initMocks(this);
+        this.mockMvc = MockMvcBuilderHelper.createMockMvc(dup);
+    }
+    
+    @SuppressWarnings({ "unchecked" })
+	@Test
+    public void test_findAll() throws Exception {
+    	ArrayList<NationDto> list = Lists.newArrayList(new NationDto("KR", "Korea", "", false, false, true));
+    	Page<NationDto> page = new PageImpl<>(list);
+    	when(service.findAll(any(Map.class), any(Pageable.class))).thenReturn(page);
+    	
+    	mockMvc.perform(get("/sys/code/nation?page=0&size=10")
+                .contentType(contentType))
+                .andDo(print())
+                .andExpect(status().isOk());
+
+        verify(service, only()).findAll(any(Map.class), any(Pageable.class));
+    }
+    
+    @SuppressWarnings({ "unchecked" })
+    @Test
+    public void test_findAll_with_param() throws Exception {
+    	ArrayList<NationDto> list = Lists.newArrayList(new NationDto("KR", "Korea", "", false, false, true));
+    	Page<NationDto> page = new PageImpl<>(list);
+    	when(service.findAll(any(Map.class), any(Pageable.class))).thenReturn(page);
+    	
+    	mockMvc.perform(get("/sys/code/nation?page=0&size=10&nationEnglishName=Korea")
+    			.contentType(contentType))
+    			.andDo(print())
+    			.andExpect(status().isOk())
+    			.andExpect(content().contentType(contentType))
+    			.andExpect(jsonPath("page.content").isArray());
+    	
+    	verify(service, only()).findAll(any(Map.class), any(Pageable.class));
+    }
+    
+    @Test
+    public void test_saveNation_success() throws Exception {
+        ArrayList<NationDto> list = Lists.newArrayList(
+                new NationDto("KR", "Korea", "", false, false, true, "C"),
+                new NationDto("JP", "Japan", "", false, false, true, "U")
+        );
+        String content = asJsonString(list);
+        System.out.println(content);
+        when(service.saveNation(anyListOf(NationDto.class))).thenReturn(2);
+
+        mockMvc.perform(
+                post("/sys/code/nation")
+                        .contentType(contentType)
+                        .content(content))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("resultCode").value(1))
+                .andExpect(jsonPath("message").value("cmm.request.ok"));
+
+
+        verify(service, times(1)).saveNation(anyListOf(NationDto.class));
+        verifyNoMoreInteractions(service);
+    }
+    
+    @Test
+    public void test_saveNation_IllegalArgumentException() throws Exception {
+        ArrayList<NationDto> list = Lists.newArrayList(
+                new NationDto("KR", "Korea", "", false, false, true, "C"),
+                new NationDto("JP", "Japan", "", false, false, true, "U")
+        );
+        String content = asJsonString(list);
+        String message = "cmm.warn.required";
+
+        when(service.saveNation(anyListOf(NationDto.class))).thenThrow(new IllegalArgumentException());
+
+        mockMvc.perform(
+                post("/sys/code/nation")
+                        .contentType(contentType)
+                        .content(content))
+                .andDo(print())
+                .andExpect(status().is5xxServerError())
+                .andExpect(jsonPath("resultCode").value(-1))
+                .andExpect(jsonPath("message").value(message));
+
+        verify(service, times(1)).saveNation(anyListOf(NationDto.class));
+        verifyNoMoreInteractions(service);
+    }
+	
+	@Test
+    public void test_saveNation_FrameworkServiceException() throws Exception {
+        ArrayList<NationDto> list = Lists.newArrayList(
+                new NationDto("KR", "Korea", "", false, false, true, "C"),
+                new NationDto("JP", "Japan", "", false, false, true, "U")
+        );
+        String content = asJsonString(list);
+        String message = "cmm.warn.notfound";
+        when(service.saveNation(anyListOf(NationDto.class))).thenThrow(new FrameworkServiceException(message));
+
+        mockMvc.perform(
+                post("/sys/code/nation")
+                        .contentType(contentType)
+                        .content(content))
+                .andDo(print())
+                .andExpect(status().is5xxServerError())
+                .andExpect(jsonPath("resultCode").value(-1))
+                .andExpect(jsonPath("message").value(message));
+
+        verify(service, times(1)).saveNation(anyListOf(NationDto.class));
+        verifyNoMoreInteractions(service);
+    }
+	
+	@Test
+    public void test_saveNation_throw_Exception() throws Exception {
+        ArrayList<NationDto> list = Lists.newArrayList(
+                new NationDto("KR", "Korea", "", false, false, true, "C"),
+                new NationDto("JP", "Japan", "", false, false, true, "U")
+        );
+        String content = asJsonString(list);
+        String message = "SystemLocation error occurred.\n\nPlease contact system administrator.";
+        when(service.saveNation(anyListOf(NationDto.class))).thenThrow(new RuntimeException());
+
+        mockMvc.perform(
+                post("/sys/code/nation")
+                        .contentType(contentType)
+                        .content(content))
+                .andDo(print())
+                .andExpect(status().is5xxServerError())
+                .andExpect(jsonPath("resultCode").value(-1))
+                .andExpect(jsonPath("message").value(message));
+
+        verify(service, times(1)).saveNation(anyListOf(NationDto.class));
+        verifyNoMoreInteractions(service);
+    }
+	
+	private String asJsonString(ArrayList<NationDto> nationDtoList) throws JsonProcessingException {
+		return objectMapper.writeValueAsString(nationDtoList);
+	}
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+<NationService.java>
+
+package ngel.mrv.cms.sys.nation.service;
+
+@Service
+@Transactional
+public class NationService extends CommonService {
+
+	@Autowired
+	private NationRepository nationRepository;
+
+	public Nation createNation(NationDto newNation) {
+		Assert.notNull(newNation);
+		Assert.notNull(newNation.getNationCode());
+		
+		boolean isExist = isExists(newNation);
+		if(isExist)
+			throw new FrameworkServiceException("cmm.warn.exists");
+
+		return nationRepository.save(newNation.createNation());
+	}
+
+	public boolean isExists(NationDto newNation) {
+		return nationRepository.exists(newNation.getNationCode());
+	}
+
+	public Nation updateNation(NationDto modifiedNation) {
+		Assert.notNull(modifiedNation);
+		Assert.notNull(modifiedNation.getNationCode());
+		
+		Nation savedNation = findByNationCode(modifiedNation.getNationCode());
+		if(savedNation == null)
+			throw new FrameworkServiceException("cmm.warn.notfound");
+		
+		savedNation.update(modifiedNation);
+		
+		return savedNation;
+	}
+	
+	public Page<NationDto> findAll(Map<String, Object> param, Pageable pageable) {
+		Specification<Nation> spec = NationSpec.getSpecByMap(param);
+		Page<Nation> page = nationRepository.findAll(spec, pageable);
+		return mapEntityPageToDtoPage(page, NationDto.class);
+	}
+	
+	public Nation findByNationCode(String nationCode) {
+		return nationRepository.findOne(nationCode);
+	}
+
+	public int saveNation(List<NationDto> nationDtoList) {
+		for(NationDto dto : nationDtoList) {
+			if(RowStatus.CREATE.equals(dto.getRowStatus()))
+				createNation(dto);
+			else
+				updateNation(dto);
+		}
+		return nationDtoList.size();
+	}
+
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+<NationServiceTest.java>
+
+package ngel.mrv.cms.sys.nation.service;
+
+@RunWith(MockitoJUnitRunner.class)
+public class NationServiceTest {
+
+	private static final String NATION_CD = "KR";
+
+	@Mock
+	private NationRepository repository;
+	
+	@Mock
+	private ModelMapper modelMapper = new ModelMapper();
+	
+	@InjectMocks
+	private NationService dup;
+
+	@Test(expected=IllegalArgumentException.class)
+	public void 국가_생성_NULL_입력_시_익셉션() throws Exception {
+		dup.createNation(null);
+	}
+
+	@Test(expected=FrameworkServiceException.class)
+	public void 국가_생성_중복국가코드_입력_시_익셉션처리() throws Exception {
+		NationDto newNation = new NationDto(NATION_CD, "Korea", "", false, false, true);
+
+		// given
+		when(repository.exists(NATION_CD)).thenReturn(true);
+		
+		// when
+		dup.createNation(newNation);
+		
+		// then
+		verify(repository, times(1)).exists(any(String.class));
+		verifyNoMoreInteractions(repository);
+	}
+	
+	@Test
+	public void 국가_생성성공_시_생성된_NATION_리턴() throws Exception {
+		Nation nation = new Nation(NATION_CD, "KOREA");
+		NationDto nationDto = new NationDto(NATION_CD, "Korea", "", false, false, true);
+		
+		// given
+		when(repository.exists(NATION_CD)).thenReturn(false);
+		when(repository.save(any(Nation.class))).thenReturn(nation);
+		
+		// when
+		Nation newNation = dup.createNation(nationDto);
+		assertNotNull(newNation);
+		assertTrue(nationDto.getNationCode().equals(newNation.getNationCode()));
+		
+		// then
+		verify(repository, times(1)).exists(NATION_CD);
+		verify(repository, times(1)).save(any(Nation.class));
+		verifyNoMoreInteractions(repository);
+	}
+	
+	@Test(expected=IllegalArgumentException.class)
+	public void 국가_수정_NULL_입력_시_익셉션처리() throws Exception {
+		dup.updateNation(null);
+	}
+	
+	@Test(expected=FrameworkServiceException.class)
+	public void 국가_수정_존재하지_않는_국가코드_입력_시_익셉션처리() throws Exception {
+		NationDto modified = new NationDto(NATION_CD, "Korea", "", false, false, true);
+		
+		// given
+		when(repository.findOne(NATION_CD)).thenReturn(null);
+		
+		// when
+		dup.updateNation(modified);
+		
+		// then
+		verify(repository, only()).findOne(NATION_CD);
+		verifyNoMoreInteractions(repository);
+	}
+	
+	@Test
+	public void 국가_수정성공_시_수정된_NATION_리턴() throws Exception {
+		Nation nation = new Nation(NATION_CD, "KOREA");
+		NationDto modified = new NationDto(NATION_CD, "KOREA2", "한국2", true, true, false);
+		
+		// given
+		when(repository.findOne(NATION_CD)).thenReturn(nation);
+		
+		// when
+		Nation updatedNation = dup.updateNation(modified);
+		
+		assertNotNull(updatedNation);
+		assertThat(updatedNation.getNationEnglishName(), is(modified.getNationEnglishName()));
+		assertThat(updatedNation.getNationKoreanName(), is(modified.getNationKoreanName()));
+		
+		// then
+		verify(repository, only()).findOne(NATION_CD);
+		verifyNoMoreInteractions(repository);
+	}
+	
+	@Test
+	public void 국가코드로_조회_시_NATION_단건_리턴() throws Exception {
+		Nation nation = new Nation(NATION_CD, "KOREA");
+
+		// given
+		when(repository.findOne(NATION_CD)).thenReturn(nation);
+		
+		// when
+		Nation found = dup.findByNationCode(NATION_CD);
+		
+		assertNotNull(found);
+		
+		// then
+		verify(repository, only()).findOne(NATION_CD);
+	}
+	
+	@Test
+	@SuppressWarnings("unchecked")
+	public void 검색조건으로_조회_시_Page_NATION_리턴() throws Exception {
+		Map<String, Object> param = Maps.newHashMap();
+		param.put("nationEnglishName", "KOR");
+		
+		Nation nation = new Nation(NATION_CD, "KOREA");
+		Page<Nation> page = new PageImpl<Nation>(Lists.newArrayList(nation));
+		
+		// given
+		when(repository.findAll(any(Specification.class), any(Pageable.class))).thenReturn(page);
+		
+		// when
+		Page<NationDto> result = dup.findAll(param, new PageRequest(0, 10, Direction.ASC, "nationCode"));
+		assertTrue(result.getTotalElements() > 0);
+		
+		// then
+		verify(repository, only()).findAll(any(Specification.class), any(Pageable.class));
+		verifyNoMoreInteractions(repository);
+	}
+	
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+<NationDto.java>
+
+package ngel.mrv.cms.sys.nation.domain;
+
+import ngel.support.CommonDto;
+
+public class NationDto extends CommonDto {
+	private String nationCode;
+	private String nationEnglishName;
+	private String nationKoreanName;
+	private boolean euMemberStates;
+	private boolean eeaMemberStates;
+	private boolean enabled;
+	
+	public NationDto() {
+		
+	}
+
+	public NationDto(String nationCode, String nationEnglishName, String nationKoreanName, boolean euMemberStates, boolean eeaMemberStates, boolean enabled) {
+		this.nationCode = nationCode;
+		this.nationEnglishName = nationEnglishName;
+		this.nationKoreanName = nationKoreanName;
+		this.euMemberStates = euMemberStates;
+		this.eeaMemberStates = eeaMemberStates;
+		this.enabled = enabled;
+	}
+	public NationDto(String nationCode, String nationEnglishName, String nationKoreanName, boolean euMemberStates, boolean eeaMemberStates, boolean enabled, String rowStatus) {
+		super(rowStatus);
+		this.nationCode = nationCode;
+		this.nationEnglishName = nationEnglishName;
+		this.nationKoreanName = nationKoreanName;
+		this.euMemberStates = euMemberStates;
+		this.eeaMemberStates = eeaMemberStates;
+		this.enabled = enabled;
+	}
+	public String getNationCode() {
+		return nationCode;
+	}
+	public String getNationEnglishName() {
+		return nationEnglishName;
+	}
+	public String getNationKoreanName() {
+		return nationKoreanName;
+	}
+	public boolean isEuMemberStates() {
+		return euMemberStates;
+	}
+	public boolean isEeaMemberStates() {
+		return eeaMemberStates;
+	}
+	public boolean isEnabled() {
+		return enabled;
+	}
+	
+	public Nation createNation() {
+		return new Nation(nationCode, nationEnglishName, nationKoreanName, euMemberStates, eeaMemberStates, enabled);
+	}
+}
+
+
