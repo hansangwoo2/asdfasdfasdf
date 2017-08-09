@@ -1,0 +1,529 @@
+<VesselController.java>
+
+@RestController
+@RequestMapping("/opr/vessel")
+public class VesselController {
+	
+	@Autowired
+	private VesselService vesselService;
+
+	@RequestMapping(method = RequestMethod.GET)
+	public ResponseResult findAll(@RequestParam Map<String, Object> param, Pageable pageable) {
+		Page<VesselDto> page = vesselService.findAll(param, pageable);
+		return ResponseResult.result(page);
+	}
+	
+	@RequestMapping(method = RequestMethod.POST)
+	public ResponseResult saveVessel(@RequestBody List<VesselDto> vesselDtoList){
+		vesselService.saveVessel(vesselDtoList);
+		return ResponseResult.ok();
+		
+	}
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+<VesselControllerTest.java>
+
+@RunWith(MockitoJUnitRunner.class)
+public class VesselControllerTest {
+
+    private MockMvc mockMvc;
+    private ObjectMapper objectMapper = new ObjectMapper();
+    private MediaType contentType = new MediaType(MediaType.APPLICATION_JSON.getType(),
+            MediaType.APPLICATION_JSON.getSubtype(),
+            Charset.forName("utf8"));
+	
+    @Mock
+    private VesselService service;
+
+	@Mock
+	private ModelMapper model = new ModelMapper();
+
+    @InjectMocks
+    private VesselController dup;
+    
+    @Before
+    public void setUp() throws Exception {
+        MockitoAnnotations.initMocks(this);
+        this.mockMvc = MockMvcBuilderHelper
+                            .createMockMvc(dup);
+    }
+    
+    @SuppressWarnings("unchecked")
+    @Test
+    public void test_findAll() throws Exception {
+
+        ArrayList<VesselDto> list = Lists.newArrayList(new VesselDto("IMO1234567", "배이름호", "PT2", "PTT2", "홍길동", "IMO1234567", "화물선", 200000, 500000, "", "", "", "", true));
+        Page<VesselDto> page = new PageImpl<>(list);
+        when(service.findAll(any(Map.class), any(Pageable.class))).thenReturn(page);
+
+        mockMvc.perform(get("/opr/vessel?page=0&size=10")
+                .contentType(contentType))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("page.content").isArray())
+                .andDo(print());
+
+        verify(service, only()).findAll(any(Map.class), any(Pageable.class));
+    }
+    
+    @SuppressWarnings("unchecked")
+    @Test
+    public void test_findAll_with_param() throws Exception {
+        ArrayList<VesselDto> list = Lists.newArrayList(new VesselDto("IMO1234567", "배이름호", "PT2", "PTT2", "홍길동", "IMO1234567", "화물선", 200000, 500000, "", "", "", "", true));
+        Page<VesselDto> page = new PageImpl<>(list);
+        when(service.findAll(any(Map.class), any(Pageable.class))).thenReturn(page);
+
+        mockMvc.perform(get("/opr/vessel?page=0&size=10&imoIdentifyNumber=IMO1234567")
+                .contentType(contentType))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(contentType))
+                .andExpect(jsonPath("page.content").isArray());
+
+        verify(service, only()).findAll(any(Map.class), any(Pageable.class));
+    }
+    
+
+    @Test
+    public void test_saveVessel_success() throws Exception {
+        ArrayList<VesselDto> list = Lists.newArrayList(
+                new VesselDto("IMO1234567", "배이름호", "PT2", "PTT2", "홍길동", "IMO1234567", "화물선", 200000, 500000, "", "", "", "", true, "C"),
+                new VesselDto("IMO1234567", "배이름호", "PT2", "PTT2", "홍길동", "IMO1234567", "화물선", 200000, 500000, "", "", "", "", true, "U")
+        );
+        
+        String content = asJsonString(list);
+        System.out.println(content);
+        when(service.saveVessel(anyListOf(VesselDto.class))).thenReturn(2);
+
+        mockMvc.perform(
+                post("/opr/vessel")
+                        .contentType(contentType)
+                        .content(content))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("resultCode").value(1))
+                .andExpect(jsonPath("message").value("cmm.request.ok"));
+
+
+        verify(service, times(1)).saveVessel(anyListOf(VesselDto.class));
+        verifyNoMoreInteractions(service);
+    }
+    
+    @Test
+    public void test_saveVessel_IllegalArgumentException() throws Exception {
+        ArrayList<VesselDto> list = Lists.newArrayList(
+                new VesselDto("IMO1234567", "배이름호", "PT2", "PTT2", "홍길동", "IMO1234567", "화물선", 200000, 500000, "", "", "", "", true, "C"),
+                new VesselDto("IMO1234567", "배이름호", "PT2", "PTT2", "홍길동", "IMO1234567", "화물선", 200000, 500000, "", "", "", "", true, "U")
+        );
+        String content = asJsonString(list);
+        String message = "cmm.warn.required";
+
+        when(service.saveVessel(anyListOf(VesselDto.class))).thenThrow(new IllegalArgumentException());
+
+        mockMvc.perform(
+                post("/opr/vessel")
+                        .contentType(contentType)	
+                        .content(content))
+                .andDo(print())
+		        .andExpect(status().is5xxServerError())
+		        .andExpect(jsonPath("resultCode").value(-1))
+		        .andExpect(jsonPath("message").value(message));
+		        
+        verify(service, times(1)).saveVessel(anyListOf(VesselDto.class));
+        verifyNoMoreInteractions(service);
+    }
+    
+    @Test
+    public void test_saveVessel_FrameworkServiceException() throws Exception {
+        ArrayList<VesselDto> list = Lists.newArrayList(
+                new VesselDto("IMO1234567", "배이름호", "PT2", "PTT2", "홍길동", "IMO1234567", "화물선", 200000, 500000, "", "", "", "", true, "C"),
+                new VesselDto("IMO1234567", "배이름호", "PT2", "PTT2", "홍길동", "IMO1234567", "화물선", 200000, 500000, "", "", "", "", true, "U")
+        );
+        String content = asJsonString(list);
+        String message = "cmm.warn.notfound";
+        when(service.saveVessel(anyListOf(VesselDto.class))).thenThrow(new FrameworkServiceException(message));
+
+        mockMvc.perform(
+                post("/opr/vessel")
+                        .contentType(contentType)
+                        .content(content))
+                .andDo(print())
+                .andExpect(status().is5xxServerError())
+                .andExpect(jsonPath("resultCode").value(-1))
+                .andExpect(jsonPath("message").value(message));
+
+        verify(service, times(1)).saveVessel(anyListOf(VesselDto.class));
+        verifyNoMoreInteractions(service);
+    }
+    
+    @Test
+    public void test_throw_Exception() throws Exception {
+        ArrayList<VesselDto> list = Lists.newArrayList(
+                new VesselDto("IMO1234567", "배이름호", "PT2", "PTT2", "홍길동", "IMO1234567", "화물선", 200000, 500000, "", "", "", "", true, "C"),
+                new VesselDto("IMO1234567", "배이름호", "PT2", "PTT2", "홍길동", "IMO1234567", "화물선", 200000, 500000, "", "", "", "", true, "U")
+        );
+        String content = asJsonString(list);
+        String message = "SystemLocation error occurred.\n\nPlease contact system administrator.";
+        when(service.saveVessel(anyListOf(VesselDto.class))).thenThrow(new RuntimeException());
+
+        mockMvc.perform(
+                post("/opr/vessel")
+                        .contentType(contentType)
+                        .content(content))
+                .andDo(print())
+                .andExpect(status().is5xxServerError())
+                .andExpect(jsonPath("resultCode").value(-1))
+                .andExpect(jsonPath("message").value(message));
+
+        verify(service, times(1)).saveVessel(anyListOf(VesselDto.class));
+        verifyNoMoreInteractions(service);
+    }
+    
+    private String asJsonString(ArrayList<VesselDto> vesselDtoList) throws JsonProcessingException {
+        return objectMapper.writeValueAsString(vesselDtoList);
+    }
+
+}
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+<VesselService.java>
+
+
+@Service
+@Transactional
+public class VesselService extends CommonService {
+	
+	@Autowired
+	private VesselRepository vesselRepository;
+	
+	public int saveVessel(List<VesselDto> vesselDtoList) {
+		for(VesselDto dto : vesselDtoList) {
+			if(RowStatus.CREATE.equals(dto.getRowStatus()))
+				createVessel(dto);
+			else
+				updateVessel(dto);
+		}
+		return vesselDtoList.size();
+	}
+	
+	public Vessel createVessel(VesselDto newVessel) {
+		//생성전 null체크
+		Assert.notNull(newVessel);
+		Assert.notNull(newVessel.getShipName());
+		Assert.notNull(newVessel.getImoIdentifyNumber());
+		Assert.notNull(newVessel.getShipOwnerName());
+		Assert.notNull(newVessel.getRegistryPortCode());
+		Assert.notNull(newVessel.getShipownerId());
+		Assert.notNull(newVessel.getShipType());
+		Assert.notNull(newVessel.getDeadWeight());
+		Assert.notNull(newVessel.getGrossTon());
+		if(vesselRepository.exists(newVessel.getImoIdentifyNumber()))
+			throw new FrameworkServiceException("cmm.warn.exists");
+		
+		Vessel savednewVessel = vesselRepository.save(newVessel.createVessel());
+		
+		return savednewVessel;
+	}
+	
+	public Vessel updateVessel(VesselDto modifiedVessel) {
+		//null 체크
+		Assert.notNull(modifiedVessel);
+		Assert.notNull(modifiedVessel.getShipName());
+		Assert.hasText(modifiedVessel.getShipName());
+		Assert.notNull(modifiedVessel.getImoIdentifyNumber());
+		Assert.hasText(modifiedVessel.getImoIdentifyNumber());
+		Assert.notNull(modifiedVessel.getShipOwnerName());
+		Assert.hasText(modifiedVessel.getShipOwnerName());
+		Assert.notNull(modifiedVessel.getRegistryPortCode());
+		Assert.hasText(modifiedVessel.getRegistryPortCode());
+		Assert.notNull(modifiedVessel.getShipownerId());
+		Assert.hasText(modifiedVessel.getShipownerId());
+		Assert.notNull(modifiedVessel.getShipType());
+		Assert.hasText(modifiedVessel.getShipType());
+		Assert.notNull(modifiedVessel.getDeadWeight());
+		Assert.notNull(modifiedVessel.getGrossTon());
+		Vessel savedVessel = findByVesselCode(modifiedVessel.getImoIdentifyNumber());
+		if(savedVessel == null)
+			throw new FrameworkServiceException("cmm.warn.notfound");
+		
+		savedVessel.update(modifiedVessel);
+		
+		return savedVessel;
+	}
+	
+	public Vessel findByVesselCode(String vesselCode) {
+		return vesselRepository.findOne(vesselCode);
+	}
+	
+	public  Page<VesselDto> findAll(Map<String, Object> param, Pageable pageable) {
+		//검색조건에 IMO ID를 포함하였는지 체크
+		if(!NglStringUtil.isNullOrEmpty((String) param.get("shipOwnerName")) || !NglStringUtil.isNullOrEmpty((String) param.get("registryPortCode"))){
+			Assert.notNull(param.get("imoIdentifyNumber"));
+			Assert.hasText((String) param.get("imoIdentifyNumber"));
+		}
+		Specification<Vessel> spec = VesselSpec.getSpecByMap(param);
+		Page<Vessel> page = vesselRepository.findAll(spec, pageable);
+		return mapEntityPageToDtoPage(page, VesselDto.class);
+	}
+
+}
+
+
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+<VesselServiceTest.java>
+
+
+@RunWith(MockitoJUnitRunner.class)
+public class VesselServiceTest {
+
+	private static final String IMO_IDENTIFY_NUM = "IMO1234567";
+	
+	@Mock
+	private VesselRepository repository;
+	
+	@Mock
+	private ModelMapper modelMapper = new ModelMapper();
+	
+	@InjectMocks
+	private VesselService dup;
+	
+	private Vessel objVessel;
+	@Before
+	public void setup() {
+		objVessel = new Vessel("IMO1234567", "배이름호", "PT2", "PTT2", "홍길동", "IMO1234567", "화물선", 200000, 500000, "", "", "", "", true);
+	}
+	
+	@Test(expected=IllegalArgumentException.class)
+	public void 선박_생성_NULL_입력_시_익셉션() throws Exception {
+		dup.createVessel(null);
+	}
+	
+	@Test(expected=FrameworkServiceException.class)
+	public void 선박_생성_중복IMO코드_입력_시_익셉션처리() throws Exception {
+		VesselDto newVessel = new VesselDto("IMO1234567", "배이름호", "PT2", "PTT2", "홍길동", "IMO1234567", "화물선", 200000, 500000, "", "", "", "", true);
+
+		// given
+		when(repository.exists(IMO_IDENTIFY_NUM)).thenReturn(true);
+		
+		// when
+		dup.createVessel(newVessel);
+		
+		// then
+		verify(repository, only()).exists(IMO_IDENTIFY_NUM);
+	}
+	
+	@Test
+	public void 선박_생성성공_시_생성된_VESSEL_리턴() throws Exception {
+		VesselDto newVessel = new VesselDto("IMO1234567", "배이름호", "PT2", "PTT2", "홍길동", "IMO1234567", "화물선", 200000, 500000, "", "", "", "", true);
+		
+		// given
+		when(repository.exists(IMO_IDENTIFY_NUM)).thenReturn(false);
+		when(repository.save(any(Vessel.class))).thenReturn(objVessel);
+		
+		// when
+		Vessel savedVessel = dup.createVessel(newVessel);
+		
+		assertNotNull(savedVessel);
+		
+		// then
+		verify(repository, times(1)).exists(IMO_IDENTIFY_NUM);
+		verify(repository, times(1)).save(any(Vessel.class));
+		verifyNoMoreInteractions(repository);
+	}
+	
+	@Test(expected=IllegalArgumentException.class)
+	public void 선박_수정_NULL_입력_시_익셉션처리() throws Exception {
+		dup.updateVessel(null);
+	}
+	
+	@Test(expected=FrameworkServiceException.class)
+	public void 선박_수정_존재하지_않는_IMO코드_입력_시_익셉션처리() throws Exception {
+		VesselDto modified = new VesselDto("IMO1234567", "배이름호", "PT2", "PTT2", "홍길동", "IMO1234567", "화물선", 200000, 500000, "", "", "", "", true);
+
+		// given
+		when(repository.findOne(IMO_IDENTIFY_NUM)).thenReturn(null);
+		
+		// when
+		dup.updateVessel(modified);
+		
+		// then
+		verify(repository, only()).findOne(IMO_IDENTIFY_NUM);
+	}
+	
+	@Test
+	public void 선박_수정성공_시_수정된_VESSEL_리턴() throws Exception {
+		VesselDto modified = new VesselDto("IMO1234567", "배이름호", "PT2", "PTT2", "홍길동", "IMO1234567", "화물선", 200000, 500000, "", "", "", "", true);
+		
+		// given
+		when(repository.findOne(IMO_IDENTIFY_NUM)).thenReturn(objVessel);
+		
+		// when
+		Vessel savedVessel = dup.updateVessel(modified);
+		
+		assertNotNull(savedVessel);
+		assertThat(savedVessel.getShipownerId(), is(modified.getShipownerId()));
+		
+		// then
+		verify(repository, only()).findOne(IMO_IDENTIFY_NUM);
+	}
+	
+	@Test
+	public void IMO코드로_조회_시_VESSEL_리턴() throws Exception {
+		Vessel vessel = new Vessel("IMO1234567", "배이름호", "PT2", "PTT2", "홍길동", "IMO1234567", "화물선", 200000, 500000, "", "", "", "", true);
+
+		// given
+		when(repository.findOne(IMO_IDENTIFY_NUM)).thenReturn(vessel);
+		
+		// when
+		Vessel found = dup.findByVesselCode(IMO_IDENTIFY_NUM);
+		
+		assertNotNull(found);
+		
+		// then
+		verify(repository, only()).findOne(IMO_IDENTIFY_NUM);
+	}
+	
+	@SuppressWarnings("unchecked")
+	@Test
+	public void 검색조건으로_조회_시_VESSEL_PAGE_리턴() throws Exception {
+		Map<String, Object> param = Maps.newHashMap();
+		param.put("imoIdentifyNumber", "IMO1234567");
+
+		List<Vessel> list = Lists.newArrayList(new Vessel("IMO1234567", "배이름호", "PT2", "PTT2", "홍길동", "IMO1234567", "화물선", 200000, 500000, "", "", "", "", true));
+		Page<Vessel> page = new PageImpl<>(list);
+
+		// given
+		when(repository.findAll(any(Specification.class), any(Pageable.class))).thenReturn(page);
+
+		// when
+		Page<VesselDto> result = dup.findAll(param, new PageRequest(0, 10, Direction.ASC, "imoIdentifyNumber"));
+		assertTrue(result.getTotalElements() > 0);
+		
+		// then
+		verify(repository, only()).findAll(any(Specification.class), any(Pageable.class));
+
+	}
+
+}
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+<VesselDto.java>
+
+public class VesselDto extends CommonDto {
+	private String imoIdentifyNumber;
+	private String shipName;
+	private String registryPortCode;
+	private String homePortCode;
+	private String shipOwnerName;
+	private String shipownerId;
+	private String shipType;
+	private int deadWeight;
+	private int grossTon;
+	private String classificationSociety;
+	private String iceClass;
+	private String flagStateCode;
+	private String remark;
+	private boolean enabled;
+	
+	
+	public VesselDto(){};
+	
+	public VesselDto(String imoIdentifyNumber, String shipName, String registryPortCode, String homePortCode, String shipOwnerName,
+			String shipownerId, String shipType, int deadWeight, int grossTon, String classificationSociety,
+			String iceClass, String flagStateCode, String remark, boolean enabled) {
+		this.imoIdentifyNumber = imoIdentifyNumber;
+		this.shipName = shipName;
+		this.registryPortCode = registryPortCode;
+		this.homePortCode = homePortCode;
+		this.shipOwnerName = shipOwnerName;
+		this.shipownerId = shipownerId;
+		this.shipType = shipType;
+		this.deadWeight = deadWeight;
+		this.grossTon = grossTon;
+		this.classificationSociety = classificationSociety;
+		this.iceClass = iceClass;
+		this.flagStateCode = flagStateCode;
+		this.remark = remark;
+		this.enabled = enabled;
+	}
+	
+	public VesselDto(String imoIdentifyNumber, String shipName, String registryPortCode, String homePortCode, String shipOwnerName,
+			String shipownerId, String shipType, int deadWeight, int grossTon, String classificationSociety,
+			String iceClass, String flagStateCode, String remark, boolean enabled, String rowStatus) {
+		super(rowStatus);
+		this.imoIdentifyNumber = imoIdentifyNumber;
+		this.shipName = shipName;
+		this.registryPortCode = registryPortCode;
+		this.homePortCode = homePortCode;
+		this.shipOwnerName = shipOwnerName;
+		this.shipownerId = shipownerId;
+		this.shipType = shipType;
+		this.deadWeight = deadWeight;
+		this.grossTon = grossTon;
+		this.classificationSociety = classificationSociety;
+		this.iceClass = iceClass;
+		this.flagStateCode = flagStateCode;
+		this.remark = remark;
+		this.enabled = enabled;
+	}
+	
+	public String getImoIdentifyNumber() {
+		return imoIdentifyNumber;
+	}
+	public String getShipName() {
+		return shipName;
+	}
+	public String getRegistryPortCode() {
+		return registryPortCode;
+	}
+	public String getHomePortCode() {
+		return homePortCode;
+	}
+	public String getShipOwnerName() {
+		return shipOwnerName;
+	}
+	public String getShipownerId() {
+		return shipownerId;
+	}
+	public String getShipType() {
+		return shipType;
+	}
+	public int getDeadWeight() {
+		return deadWeight;
+	}
+	public int getGrossTon() {
+		return grossTon;
+	}
+	public boolean isEnabled() {
+		return enabled;
+	}
+	public String getClassificationSociety() {
+		return classificationSociety;
+	}
+	public String getIceClass() {
+		return iceClass;
+	}
+	public String getFlagStateCode() {
+		return flagStateCode;
+	}
+	public String getRemark(){
+		return remark;
+	}
+	public Vessel createVessel(){
+		return new Vessel(imoIdentifyNumber, shipName, registryPortCode, homePortCode, shipOwnerName, shipownerId, shipType, deadWeight, grossTon, classificationSociety, iceClass, flagStateCode, remark, enabled);
+	}
+
+}
