@@ -51,6 +51,9 @@ public class VesselControllerTest {
                             .createMockMvc(dup);
     }
     
+    /* 테이블에 있는 모든 
+     * Vessel 데이터를 
+     * 조회한다.*/  
     @SuppressWarnings("unchecked")
     @Test
     public void test_findAll() throws Exception {
@@ -68,6 +71,8 @@ public class VesselControllerTest {
         verify(service, only()).findAll(any(Map.class), any(Pageable.class));
     }
     
+    /* 화면에서 넘어온 파라미터를 조회조건으로하여
+     * Vessel 테이블의 데이터를 조회한다.*/
     @SuppressWarnings("unchecked")
     @Test
     public void test_findAll_with_param() throws Exception {
